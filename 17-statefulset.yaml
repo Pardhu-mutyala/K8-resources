@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sc-headless-svc
+  labels:
+    purpose: statefullset
+    project: roboshop
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    purpose: statefullset
+    project: roboshop
+
+#for pod to pod communication we need to create normal service for that also
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sc-normal-svc
+  labels:
+    purpose: statefullset
+    project: roboshop
+spec:
+  ports:
+  - port: 80
+    name: web
+  selector:
+    purpose: statefullset
+    project: roboshop
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sc-headless
+spec:
+  selector:
+    matchLabels:
+      purpose: statefullset
+      project: roboshop # has to match .spec.template.metadata.labels
+  serviceName: "sc-headless-svc" # this should be service head name.
+  replicas: 3 # by default is 1
+  template:
+    metadata:
+      labels:
+        purpose: statefullset
+        project: roboshop# has to match .spec.selector.matchLabels
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+  #this is nothing but PVC, youi can directly mount here
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "roboshop-ebs"
+      resources:
+        requests:
+          storage: 1Gi
